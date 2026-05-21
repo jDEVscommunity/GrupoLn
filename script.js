@@ -4,11 +4,18 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  // ── HEADER: muda cor ao rolar ──────────────────────────────
+  // ── HEADER: muda cor e troca LOGO ao rolar ─────────────────
   const header = document.getElementById('header');
+  const logoImg = document.getElementById('header-logo');
 
   window.addEventListener('scroll', () => {
-    header.classList.toggle('scrolled', window.scrollY > 60);
+    if (window.scrollY > 60) {
+      header.classList.add('scrolled');
+      if (logoImg) logoImg.src = 'imgs/lnwhite.webp';
+    } else {
+      header.classList.remove('scrolled');
+      if (logoImg) logoImg.src = 'imgs/lnorange.webp';
+    }
   });
 
 
@@ -21,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileMenu.classList.toggle('open');
   });
 
-  // Fecha o menu ao clicar em qualquer link
   mobileMenu.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', () => {
       hamburger.classList.remove('open');
@@ -31,9 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ── SCROLL REVEAL ─────────────────────────────────────────
-  const revealEls = document.querySelectorAll(
-    '.reveal, .reveal-left, .reveal-right, .pillar'
-  );
+  const revealEls = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .pillar');
 
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -51,17 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function animateCounter(el, target) {
     let current = 0;
     const step  = Math.ceil(target / 40);
-
     const timer = setInterval(() => {
       current = Math.min(current + step, target);
-      // preserva o <span> do sufixo ("+", etc.)
       el.childNodes[0].textContent = current;
       if (current >= target) clearInterval(timer);
     }, 35);
   }
 
   const statsSection = document.querySelector('.hero-stats');
-
   if (statsSection) {
     const statsObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -73,7 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }, { threshold: 0.5 });
-
     statsObserver.observe(statsSection);
   }
 
@@ -103,6 +103,94 @@ document.addEventListener('DOMContentLoaded', () => {
           newsInput.placeholder = 'Seu melhor e-mail';
         }, 3000);
       }
+    });
+  }
+
+
+  // ── INTEGRAÇÃO EMAILJS E VALIDAÇÕES ─────────────────────────
+  emailjs.init("JT5Z5uznjfwDW16PH");
+
+  const formCotacao = document.getElementById('form-cotacao');
+  const phoneInput = document.querySelector('input[name="user_phone"]');
+  const emailInput = document.querySelector('input[name="user_email"]');
+  
+  const errorPhone = document.getElementById('error-phone');
+  const errorEmail = document.getElementById('error-email');
+
+  // Máscara de Telefone (Formata enquanto digita: (31) 99999-9999)
+  if (phoneInput) {
+    phoneInput.addEventListener('input', function (e) {
+      let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+      e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+      
+      // Remove o erro visual se o usuário começar a consertar
+      if (e.target.value.replace(/\D/g, '').length >= 10) {
+        errorPhone.style.display = 'none';
+        phoneInput.classList.remove('input-error');
+      }
+    });
+  }
+
+  // Remove o erro de e-mail enquanto o usuário digita
+  if (emailInput) {
+    emailInput.addEventListener('input', function() {
+      errorEmail.style.display = 'none';
+      emailInput.classList.remove('input-error');
+    });
+  }
+
+  // Validação estrita de formato de E-mail
+  function isEmailValid(email) {
+    const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return regex.test(email);
+  }
+
+  if (formCotacao) {
+    formCotacao.addEventListener('submit', function(event) {
+      event.preventDefault(); 
+      let isValid = true;
+
+      // Valida Telefone (deve ter no mínimo 10 dígitos numéricos: DDD + 8 números)
+      const phoneDigits = phoneInput.value.replace(/\D/g, '');
+      if (phoneDigits.length < 10) {
+        errorPhone.textContent = "Insira um número de telefone válido com DDD.";
+        errorPhone.style.display = 'block';
+        phoneInput.classList.add('input-error');
+        isValid = false;
+      }
+
+      // Valida E-mail (exige @ e domínio, ex: gmail.com)
+      if (!isEmailValid(emailInput.value)) {
+        errorEmail.textContent = "Insira um e-mail válido (ex: seu.nome@gmail.com).";
+        errorEmail.style.display = 'block';
+        emailInput.classList.add('input-error');
+        isValid = false;
+      }
+
+      // Se houver erro, para a execução aqui e não envia o e-mail
+      if (!isValid) return;
+
+      const btn = this.querySelector('button[type="submit"]');
+      const btnOriginalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+      // Envia via EmailJS
+      emailjs.sendForm('service_6bck65v', 'template_fra41cd', this)
+        .then(() => {
+          btn.innerHTML = '<i class="fas fa-check"></i> Cotação Enviada!';
+          this.reset(); 
+          
+          setTimeout(() => {
+            btn.innerHTML = btnOriginalText;
+          }, 4000);
+        }, (error) => {
+          console.error("Erro no EmailJS:", error);
+          btn.innerHTML = '<i class="fas fa-xmark"></i> Erro ao enviar';
+          
+          setTimeout(() => {
+            btn.innerHTML = btnOriginalText;
+          }, 4000);
+        });
     });
   }
 
